@@ -1,5 +1,7 @@
 #include <iostream>
+#include <functional>
 #include <vector>
+#include <cmath>
 #include "..\FFT\FFT.h"
 
 template <class T>
@@ -12,39 +14,29 @@ public:
 	int _deg() const { return deg; }
 	std::vector <T> _poly() const { return poly; }
 
+	Polynomial();
+	Polynomial(int);
+	Polynomial(std::vector <T> );
+
 	template <class U> friend std::istream & operator >> (std::istream &, Polynomial<U> &);
 	template <class U> friend std::ostream & operator << (std::ostream &, const Polynomial<U> &);
 
-	Polynomial() : deg(0) {
-		poly = std::vector <T> (1, T(0));
-	}
-	Polynomial(int deg) {
-		if (deg < 0) {
-			throw std::runtime_error("Degree must be non-negative");
-		}
-		this->deg = deg;
-		poly = std::vector <T> (deg + 1, T(0));
-	}
-	Polynomial(std::vector <T> ar) {
-		if (ar.size() == 0) {
-			throw std::runtime_error("Creating a polynomial of an empty vector");
-		}
-		deg = ar.size() - 1;
-		poly = ar;
-	}
+	void changeDegree(int);
+	void cutDegree(int);
+	Polynomial upToN(int) const;
+	template <class U> friend Polynomial<U> reverse(const Polynomial<U> &);
+	template <class U> friend Polynomial<U> operator - (const Polynomial<U> &);
 
-	void changeDegree(int __deg) {
-		poly.resize(__deg + 1);
-		deg = __deg;
-	}
+	T operator()(const T &) const;
+
+	T operator[](const size_t &);
+	const T operator[](const size_t &) const;
 
 	bool operator == (const Polynomial &);
 	bool operator != (const Polynomial &);
 
-	T operator()(const T &) const;
-
-	template <class U> friend Polynomial<U> reverse(const Polynomial<U> &);
-	template <class U> friend Polynomial<U> operator - (const Polynomial<U> &);
+	template <class U> Polynomial<T>& operator *= (const U &);
+	template <class U> Polynomial<T> operator * (const U &) const;
 
 	Polynomial& operator += (const Polynomial &);
 	Polynomial& operator -= (const Polynomial &);
@@ -57,14 +49,44 @@ public:
 	Polynomial operator % (const Polynomial &) const;
 	Polynomial operator / (const Polynomial &) const;
 
-	T operator[](const size_t &);
-	const T operator[](const size_t &) const;
+	Polynomial integral() const;
+	Polynomial derivative() const;
 
-	template <class U> Polynomial<T>& operator *= (const U &);
-	template <class U> Polynomial<T> operator * (const U &) const;
+	Polynomial inverse_series(size_t) const;
+	Polynomial log(size_t) const;
+	Polynomial exp(size_t) const;
+	Polynomial power(size_t) const;
 
-	Polynomial inverse_series(size_t n) const;
+	std::vector <T> evaluate( const std::vector < T > & ) const;
+	template <class U> friend Polynomial<U> interpolate( const std::vector < std::pair <U, U> > & );
+	template <class U> friend Polynomial<U> interpolate( const std::vector <U> &, const std::vector <U> & );
 };
+
+/*
+CONSTRUCTOPRS
+*/
+
+template <class T>
+Polynomial<T>::Polynomial() {
+	this->deg = 0;
+	this->poly = std::vector <T> (1, T(0));
+}
+template <class T>
+Polynomial<T>::Polynomial(int _deg) {
+	if (_deg < 0) {
+		throw std::runtime_error("Negative degree");
+	}
+	this->deg = _deg;
+	this->poly = std::vector <T> (_deg + 1, T(0));
+}
+template <class T>
+Polynomial<T>::Polynomial(std::vector <T> _poly) {
+	if (_poly.size() == 0) {
+		throw std::runtime_error("Creating polynomial out of an empty vector");
+	}
+	this->deg = _poly.size() - 1;
+	this->poly = _poly;
+}
 
 /* INPUT / OUTPUT */
 
@@ -85,7 +107,13 @@ std::istream & operator >> (std::istream& in, Polynomial<U>& p) {
 template <class U>
 std::ostream & operator << (std::ostream& out, const Polynomial<U>& p) {
 	for (int i = 0; i <= p.deg; ++i) {
-		out << (true ? p.poly[i] : abs(p.poly[i]));
+		if (i == 0) {
+			out << p.poly[i];
+		}
+		else {
+			if (p.poly[i] >= 0) out << p.poly[i];
+			else out << -p.poly[i];
+		}
 		if (i) out << "x^{" << i << "}";
 
 		if (i + 1 <= p.deg) out << (p.poly[i + 1] < 0 ? " - " : " + ");;
@@ -93,24 +121,22 @@ std::ostream & operator << (std::ostream& out, const Polynomial<U>& p) {
 	return out;
 }
 
-/* EQUALITY */
+/*
+MANIPULATORS
+*/
 
 template <class T>
-bool Polynomial<T>::operator == (const Polynomial<T>& rhs) {
-	if (deg != rhs.deg) return false;
-	for (size_t i = 0; i <= deg; ++i) {
-		if (poly[i] != rhs.poly[i]) {
-			return false;
-		}
-	}
-	return true;
-}
-template <class T>
-bool Polynomial<T>::operator != (const Polynomial<T>& rhs) {
-	return !(*this == rhs);
+void Polynomial<T>::changeDegree(int __deg) {
+	deg = __deg;
+	poly.resize(__deg + 1);
 }
 
-/* NEGATION */
+template <class T>
+void Polynomial<T>::cutDegree(int __deg) {
+	poly.resize( std::min(__deg + 1, deg + 1) );
+	deg = poly.size() - 1;
+}
+
 template <class U>
 Polynomial<U> operator - (const Polynomial<U>& P) {
 	Polynomial<U> result = P;
@@ -128,6 +154,17 @@ Polynomial<U> reverse(const Polynomial<U>& P) {
 	}
 	return result;
 }
+
+template <class T>
+Polynomial<T> Polynomial<T>::upToN(int n) const {
+	Polynomial <T> result = *this;
+	result.cutDegree(n);
+	return result;
+}
+
+/*
+ACCESSING AND EVALUATING
+*/
 
 template <class T>
 T Polynomial<T>::operator()(const T& x) const {
@@ -151,6 +188,25 @@ const T Polynomial<T>::operator[](const size_t& id) const {
 		throw std::runtime_error("Index out of bounds (id >= deg)");
 	}
 	return poly[id];
+}
+
+/*
+OPERATORS
+*/
+
+template <class T>
+bool Polynomial<T>::operator == (const Polynomial<T>& rhs) {
+	if (deg != rhs.deg) return false;
+	for (size_t i = 0; i <= deg; ++i) {
+		if (poly[i] != rhs.poly[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+template <class T>
+bool Polynomial<T>::operator != (const Polynomial<T>& rhs) {
+	return !(*this == rhs);
 }
 
 template <class T>
@@ -209,23 +265,39 @@ Polynomial<T>& Polynomial<T>::operator *= (const Polynomial<T>& rhs) {
 template <class T>
 Polynomial<T> Polynomial<T>::operator + (const Polynomial<T>& rhs) const {
 	Polynomial<T> result = *this;
-	result += rhs;
-	return result;
+	return result -= rhs;
 }
 
 template <class T>
 Polynomial<T> Polynomial<T>::operator - (const Polynomial<T>& rhs) const {
 	Polynomial<T> result = *this;
-	result -= rhs;
-	return result;
+	return result -= rhs;
 }
 
 template <class T>
 Polynomial<T> Polynomial<T>::operator * (const Polynomial<T>& rhs) const {
 	Polynomial<T> result = *this;
-	result *= rhs;
-	return result;
+	return result *= rhs;
 }
+
+template <class T>
+Polynomial<T> Polynomial<T>::operator / (const Polynomial<T>& rhs) const {
+	int N = deg, M = rhs.deg;
+	if (N < M) {
+		return Polynomial<T>();
+	}
+	Polynomial<T> result = reverse(*this) * (reverse(rhs)).inverse_series(N - M);
+	result.changeDegree(N - M);
+	return reverse(result);
+}
+template <class T>
+Polynomial<T> Polynomial<T>::operator % (const Polynomial<T>& rhs) const {
+	return *this - rhs * (*this / rhs);
+}
+
+/*
+FUNCTIONS ON POLYNOMIALS
+*/
 
 template <class T>
 Polynomial<T> Polynomial<T>::inverse_series(size_t n) const {
@@ -236,25 +308,143 @@ Polynomial<T> Polynomial<T>::inverse_series(size_t n) const {
 	while (curDegree - 1 < n) {
 		curDegree *= 2;
 		current = current * ( _two - (*this) * current );
-		current.changeDegree(curDegree);
+		current.changeDegree(curDegree - 1);
 	}
 	current.changeDegree(n);
 	return current;
 }
 
 template <class T>
-Polynomial<T> Polynomial<T>::operator % (const Polynomial<T>& rhs) const {
-	int N = deg, M = rhs.deg;
-	if (N < M) {
-		return *this;
+Polynomial<T> Polynomial<T>::derivative() const {
+	if (deg == 0) return Polynomial<T>();
+	Polynomial<T> result(deg - 1);
+	for (size_t i = 0; i + 1 <= deg; ++i) {
+		result.poly[i] = poly[i + 1] * T(i + 1);
 	}
-	Polynomial<T> result = reverse(*this) * (reverse(rhs)).inverse_series(N - M);
-	result.changeDegree(N - M);
-	return reverse(result);
+	return result;
 }
+
 template <class T>
-Polynomial<T> Polynomial<T>::operator / (const Polynomial<T>& rhs) const {
-	return *this - rhs * (*this % rhs);
+Polynomial<T> Polynomial<T>::integral() const {
+	Polynomial<T> result(deg + 1);
+	for (size_t i = 0; i <= deg; ++i) {
+		result.poly[i + 1] = poly[i] / T(i + 1);
+	}
+	return result;
+}
+
+template <class T>
+Polynomial<T> Polynomial<T>::log(size_t n) const {
+	Polynomial<T> result = (derivative() * inverse_series(n)).integral();
+	result.changeDegree(n);
+	return result;
+}
+
+template <class T>
+Polynomial<T> Polynomial<T>::exp(size_t n) const {
+	const Polynomial<T> _one( std::vector <T> { T(1) } );
+
+	int curDegree = 1;
+	Polynomial<T> current( std::vector <T> (1, T( 1 )) );
+
+	while (curDegree < n + 1) {
+		curDegree *= 2;
+		current = current * ( _one + *this - current.log(curDegree - 1) );
+		current.changeDegree(curDegree - 1);
+	}
+	return current;
+}
+
+/*
+FUNCTIONS ON POLYNOMIALS
+*/
+
+template <class T>
+std::vector <T> Polynomial<T>::evaluate(const std::vector <T>& Pts) const {
+	const int N = Pts.size();
+	std::vector < Polynomial <T> > seg_tree(4 * N);
+
+	std::function < void(int, int, int) > buildSegmentTree = [&]( int _v, int _vl, int _vr ) {
+		if (_vl == _vr) {
+			seg_tree[_v] = Polynomial <T> ( std::vector <T> { -Pts[_vl], T(1) } );
+			return;
+		}
+		int _m = (_vl + _vr) >> 1;
+		buildSegmentTree( _v << 1, _vl, _m );
+		buildSegmentTree( _v << 1 | 1, _m + 1, _vr );
+		seg_tree[_v] = seg_tree[_v << 1] * seg_tree[_v << 1 | 1];
+	};
+
+	buildSegmentTree(1, 0, N - 1);
+
+	std::vector <T> results(N);
+
+	std::function < void(int, int, int, const Polynomial<T> &) > traverseSegmentTree = [&]( int _v, int _vl, int _vr, const Polynomial <T>& P ) {
+		if (_vl == _vr) {
+			results[_vl] = P[0];
+			return;
+		}
+		int _m = (_vl + _vr) >> 1;
+		traverseSegmentTree( _v << 1, _vl, _m, P % seg_tree[_v << 1] );
+		traverseSegmentTree( _v << 1 | 1, _m + 1, _vr, P % seg_tree[_v << 1 | 1] );
+	};
+	traverseSegmentTree(1, 0, N - 1, *this % seg_tree[1]);
+	return results;
+}
+
+template <class U>
+Polynomial<U> interpolate(const std::vector < std::pair <U, U> >& Pts) {
+	const int N = Pts.size();
+	std::vector <U> X(N), Y(N);
+	for (size_t i = 0; i < N; ++i) {
+		X[i] = Pts[i].first;
+		Y[i] = Pts[i].first;
+	}
+	return interpolate(X, Y);
+}
+
+template <class U>
+Polynomial<U> interpolate(const std::vector <U>& X, const std::vector <U>& Y) {
+	const int N = X.size();
+	std::vector < Polynomial <U> > seg_tree(4 * N);
+
+	std::function < void(int, int, int) > buildSegmentTreeProduct = [&]( int _v, int _vl, int _vr ) {
+		if (_vl == _vr) {
+			seg_tree[_v] = Polynomial <U> ( std::vector <U> { -X[_vl], U(1) } );
+			return;
+		}
+		int _m = (_vl + _vr) >> 1;
+		buildSegmentTreeProduct( _v << 1, _vl, _m );
+		buildSegmentTreeProduct( _v << 1 | 1, _m + 1, _vr );
+		seg_tree[_v] = seg_tree[_v << 1] * seg_tree[_v << 1 | 1];
+	};
+
+	buildSegmentTreeProduct(1, 0, N - 1);
+
+	Polynomial <U> P = seg_tree[1];
+	Polynomial <U> dP = P.derivative();
+
+	std::vector <U> Results = dP.evaluate( X );
+
+	std::cerr << P << '\n' << dP << '\n';
+	for (auto &i : Results) std::cerr << i << '\n';
+	std::cerr << '\n' << '\n';
+
+	std::vector < Polynomial <U> > seg_tree_inter(4 * N);
+
+	std::function < void(int, int, int) > buildSegmentTreeInterpolation = [&]( int _v, int _vl, int _vr ) {
+		if (_vl == _vr) {
+			seg_tree_inter[_v] = Polynomial <U> ( std::vector <U> { Y[_vl] / Results[_vl] } );
+			return;
+		}
+		int _m = (_vl + _vr) >> 1;
+		buildSegmentTreeInterpolation( _v << 1, _vl, _m );
+		buildSegmentTreeInterpolation( _v << 1 | 1, _m + 1, _vr );
+		seg_tree_inter[_v] = seg_tree_inter[_v << 1] * seg_tree[_v << 1 | 1] + seg_tree_inter[_v << 1 | 1] * seg_tree[_v << 1];
+	};
+
+	buildSegmentTreeInterpolation(1, 0, N - 1);
+	return seg_tree_inter[1];
 }
 
 #include <bits/stdc++.h>
@@ -262,9 +452,16 @@ using namespace std;
 
 signed main() {
 	FFT::init();
-	Polynomial<double> a, b;
-	cin >> a;
-	cin >> b;
 
-	cout << a / b << '\n' << a % b;
+	int n;
+	cin >> n;
+	vector <long double> a(n), b(n);
+	for (int i = 0; i < n; ++i) {
+		cin >> a[i] >> b[i];
+	}
+	auto c = interpolate(a, b);
+	cout << c << '\n';
+
+	auto d = c.evaluate(a);
+	for (auto &i : d) cout << i << '\n';
 }
