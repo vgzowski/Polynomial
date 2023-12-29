@@ -3,6 +3,7 @@
 #include <vector>
 #include <cmath>
 #include "..\FFT\FFT.h"
+#include "..\Modular\Modular.h"
 
 template <class T>
 class Polynomial {
@@ -21,6 +22,7 @@ public:
 	template <class U> friend std::istream & operator >> (std::istream &, Polynomial<U> &);
 	template <class U> friend std::ostream & operator << (std::ostream &, const Polynomial<U> &);
 
+	void removeZeros();
 	void changeDegree(int);
 	void cutDegree(int);
 	Polynomial upToN(int) const;
@@ -32,8 +34,8 @@ public:
 	T operator[](const size_t &);
 	const T operator[](const size_t &) const;
 
-	bool operator == (const Polynomial &);
-	bool operator != (const Polynomial &);
+	bool operator == (const Polynomial &) const;
+	bool operator != (const Polynomial &) const;
 
 	template <class U> Polynomial<T>& operator *= (const U &);
 	template <class U> Polynomial<T> operator * (const U &) const;
@@ -126,6 +128,12 @@ MANIPULATORS
 */
 
 template <class T>
+void Polynomial<T>::removeZeros() {
+	while (poly.size() > 1 && poly.back() == 0) poly.pop_back();
+	deg = poly.size() - 1;
+}
+
+template <class T>
 void Polynomial<T>::changeDegree(int __deg) {
 	deg = __deg;
 	poly.resize(__deg + 1);
@@ -149,7 +157,7 @@ Polynomial<U> operator - (const Polynomial<U>& P) {
 template <class U>
 Polynomial<U> reverse(const Polynomial<U>& P) {
 	Polynomial<U> result = P;
-	for (int i = 0; i <= P.deg - i; ++i) {
+	for (int i = 0; i < P.deg - i; ++i) {
 		std::swap( result.poly[i], result.poly[P.deg - i] );
 	}
 	return result;
@@ -195,7 +203,7 @@ OPERATORS
 */
 
 template <class T>
-bool Polynomial<T>::operator == (const Polynomial<T>& rhs) {
+bool Polynomial<T>::operator == (const Polynomial<T>& rhs) const {
 	if (deg != rhs.deg) return false;
 	for (size_t i = 0; i <= deg; ++i) {
 		if (poly[i] != rhs.poly[i]) {
@@ -205,7 +213,7 @@ bool Polynomial<T>::operator == (const Polynomial<T>& rhs) {
 	return true;
 }
 template <class T>
-bool Polynomial<T>::operator != (const Polynomial<T>& rhs) {
+bool Polynomial<T>::operator != (const Polynomial<T>& rhs) const {
 	return !(*this == rhs);
 }
 
@@ -217,8 +225,7 @@ template <class U> Polynomial<T>& Polynomial<T>::operator *= (const U& scalar) {
 template <class T>
 template <class U> Polynomial<T> Polynomial<T>::operator * (const U& scalar) const {
 	Polynomial<T> result = *this;
-	result *= scalar;
-	return result;
+	return result *= scalar;
 }
 
 template <class T>
@@ -227,6 +234,7 @@ Polynomial<T>& Polynomial<T>::operator += (const Polynomial<T>& rhs) {
 	poly.resize(deg + 1);
 
 	for (size_t i = 0; i <= rhs.deg; ++i) poly[i] += rhs.poly[i];
+	removeZeros();
 	return *this;
 }
 
@@ -236,6 +244,7 @@ Polynomial<T>& Polynomial<T>::operator -= (const Polynomial<T>& rhs) {
 	poly.resize(deg + 1);
 
 	for (size_t i = 0; i <= rhs.deg; ++i) poly[i] -= rhs.poly[i];
+	removeZeros();
 	return *this;
 }
 
@@ -251,21 +260,18 @@ Polynomial<T>& Polynomial<T>::operator *= (const Polynomial<T>& rhs) {
 				result[i + j] += poly[i] * rhs.poly[j];
 			}
 		}
-		while (result.size() > 1 && result.back() == 0) result.pop_back();
-
-		poly = result;
-		deg = poly.size() - 1;
-
+		this->poly = result;
+		this->removeZeros();
 		return *this;
 	}
 	poly = FFT::multiply<T,T>(poly, rhs.poly);
-	deg = poly.size() - 1;
+	removeZeros();
 	return *this;
 }
 template <class T>
 Polynomial<T> Polynomial<T>::operator + (const Polynomial<T>& rhs) const {
 	Polynomial<T> result = *this;
-	return result -= rhs;
+	return result += rhs;
 }
 
 template <class T>
@@ -288,7 +294,10 @@ Polynomial<T> Polynomial<T>::operator / (const Polynomial<T>& rhs) const {
 	}
 	Polynomial<T> result = reverse(*this) * (reverse(rhs)).inverse_series(N - M);
 	result.changeDegree(N - M);
-	return reverse(result);
+	result = reverse(result);
+	result.removeZeros();
+
+	return result;
 }
 template <class T>
 Polynomial<T> Polynomial<T>::operator % (const Polynomial<T>& rhs) const {
@@ -335,9 +344,7 @@ Polynomial<T> Polynomial<T>::integral() const {
 
 template <class T>
 Polynomial<T> Polynomial<T>::log(size_t n) const {
-	Polynomial<T> result = (derivative() * inverse_series(n)).integral();
-	result.changeDegree(n);
-	return result;
+	return (derivative().upToN(n) * inverse_series(n)).integral().upToN(n);
 }
 
 template <class T>
@@ -345,13 +352,14 @@ Polynomial<T> Polynomial<T>::exp(size_t n) const {
 	const Polynomial<T> _one( std::vector <T> { T(1) } );
 
 	int curDegree = 1;
-	Polynomial<T> current( std::vector <T> (1, T( 1 )) );
+	Polynomial<T> current( std::vector <T> { T(1) } );
 
 	while (curDegree < n + 1) {
 		curDegree *= 2;
-		current = current * ( _one + *this - current.log(curDegree - 1) );
+		current = current * ( _one + upToN(curDegree - 1) - current.log(curDegree - 1) );
 		current.changeDegree(curDegree - 1);
 	}
+	current.changeDegree(n);
 	return current;
 }
 
@@ -426,10 +434,6 @@ Polynomial<U> interpolate(const std::vector <U>& X, const std::vector <U>& Y) {
 
 	std::vector <U> Results = dP.evaluate( X );
 
-	std::cerr << P << '\n' << dP << '\n';
-	for (auto &i : Results) std::cerr << i << '\n';
-	std::cerr << '\n' << '\n';
-
 	std::vector < Polynomial <U> > seg_tree_inter(4 * N);
 
 	std::function < void(int, int, int) > buildSegmentTreeInterpolation = [&]( int _v, int _vl, int _vr ) {
@@ -453,15 +457,23 @@ using namespace std;
 signed main() {
 	FFT::init();
 
+	Polynomial<long double> a;
+	cin >> a;
+
 	int n;
 	cin >> n;
-	vector <long double> a(n), b(n);
-	for (int i = 0; i < n; ++i) {
-		cin >> a[i] >> b[i];
-	}
-	auto c = interpolate(a, b);
-	cout << c << '\n';
+	cout << a.inverse_series(n) << '\n';
+	cout << a * a.inverse_series(n) << '\n';
+	cout << a.log(n) << '\n';
+	cout << (a.log(n)).exp(n) << '\n';
 
-	auto d = c.evaluate(a);
-	for (auto &i : d) cout << i << '\n';
+	int m;
+	cin >> m;
+	vector <long double> Points(m);
+	for (auto &i : Points) cin >> i;
+
+	auto c = a.evaluate(Points);
+	for (int i = 0; i < m; ++i) {
+		cout << "P(" << Points[i] << ") = " << c[i] << '\n';
+	}
 }
