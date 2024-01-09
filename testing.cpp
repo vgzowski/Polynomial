@@ -1,10 +1,18 @@
-#include <bits/stdc++.h>
+#include <iostream>
+#include <functional>
+#include <optional>
+#include <vector>
+#include <cmath>
+
+#include "..\FFT\FFT.h"
+#include "..\FFT\FFT_With_Inverse.h"
+#include "..\Modular\Modular.h"
 #include "Polynomial.h"
 
 using namespace std;
 
 signed main() {
-{
+if (false) {
 	Polynomial<long double> a;
 	cin >> a;
 
@@ -34,8 +42,12 @@ signed main() {
 	}
 }
 {
-	Polynomial<ModInteger<13>> a;
+	const int mod = 998244353;
+	Polynomial<ModInteger<mod>> a;
 	cin >> a;
+
+	cout << a.derivative() << '\n';
+	cout << a.integral() << '\n';
 
 	int n;
 	cin >> n;
@@ -43,6 +55,9 @@ signed main() {
 	cout << a * a.inverse_series(n) << '\n';
 	cout << a.log(n) << '\n';
 	cout << (a.log(n)).exp(n) << '\n';
+
+	cout << a.power(2, n) << '\n';
+	cout << "SQRT: " << (a.power(2, n)).sqrt(n) << '\n';
 
 	int u;
 	cin >> u;
@@ -54,7 +69,7 @@ signed main() {
 
 	int m;
 	cin >> m;
-	vector <ModInteger<13>> Points(m);
+	vector <ModInteger<mod>> Points(m);
 	for (auto &i : Points) cin >> i;
 
 	auto c = a.evaluate(Points);

@@ -55,7 +55,7 @@ private:
 			return;
 		}
 
-		auto Result = FFT::multiply_mod(std::vector <int> (begin(poly), end(poly)),
+		auto Result = FFT_Inverse::multiply_mod(std::vector <int> (begin(poly), end(poly)),
 						std::vector <int> (begin(rhs.poly), end(rhs.poly)),
 						T::__mod_value);
 		poly = std::vector <T> (begin(Result), end(Result));
@@ -116,7 +116,10 @@ public:
 	Polynomial inverse_series(size_t) const;
 	Polynomial log(size_t) const;
 	Polynomial exp(size_t) const;
+
 	template <typename U> Polynomial<T> power(U, size_t) const;
+
+	Polynomial<T> sqrt(size_t) const;
 
 	std::vector <T> evaluate( const std::vector < T > & ) const;
 	template <class U> friend Polynomial<U> interpolate( const std::vector < std::pair <U, U> > & );
@@ -463,6 +466,17 @@ Polynomial<T> Polynomial<T>::power(U k, size_t n) const {
 
 	current /= coefficient;
 	return ( ((current.log(n) * k).exp(n) << (std::min(k * first_not_zero, n))) * pow(coefficient, k)).upToN(n);
+}
+
+template <class T>
+Polynomial<T> Polynomial<T>::sqrt(size_t n) const {
+	size_t first_not_zero = 0;
+	while (poly[first_not_zero] == T(0)) ++first_not_zero;
+
+	Polynomial<T> current = *this >> first_not_zero;
+	T coefficient = current[0];
+	current /= coefficient;
+	return ( ((current.log(n) / 2).exp(n) << (std::min(first_not_zero / 2, n)))).upToN(n) * ::sqrt(coefficient).value();
 }
 
 /*
