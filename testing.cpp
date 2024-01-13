@@ -12,7 +12,7 @@
 using namespace std;
 
 signed main() {
-if (false) {
+if (true) {
 	Polynomial<long double> a;
 	cin >> a;
 
@@ -22,6 +22,9 @@ if (false) {
 	cout << a * a.inverse_series(n) << '\n';
 	cout << a.log(n) << '\n';
 	cout << (a.log(n)).exp(n) << '\n';
+
+	cout << a.power(2, n) << '\n';
+	cout << "SQRT: " << (a.power(2, n)).sqrt(n).value() << '\n';
 
 	int u;
 	cin >> u;
@@ -41,7 +44,7 @@ if (false) {
 		cout << "P(" << Points[i] << ") = " << c[i] << '\n';
 	}
 }
-{
+if (false) {
 	const int mod = 998244353;
 	Polynomial<ModInteger<mod>> a;
 	cin >> a;
@@ -57,7 +60,7 @@ if (false) {
 	cout << (a.log(n)).exp(n) << '\n';
 
 	cout << a.power(2, n) << '\n';
-	cout << "SQRT: " << (a.power(2, n)).sqrt(n) << '\n';
+	cout << "SQRT: " << (a.power(2, n)).sqrt(n).value() << '\n';
 
 	int u;
 	cin >> u;
