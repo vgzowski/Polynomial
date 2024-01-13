@@ -1,6 +1,7 @@
 #pragma once
 
 #include <iostream>
+#include <optional>
 #include <functional>
 #include <vector>
 #include <cmath>
@@ -62,6 +63,49 @@ private:
 		removeZeros();
 		deg = poly.size() - 1;
 	}
+
+	inline std::optional < Polynomial > __sqrt( size_t n, Int2Type <true> ) const {
+		size_t first_not_zero = 0;
+		while (poly[first_not_zero] == T(0)) ++first_not_zero;
+
+		if (first_not_zero & 1) {
+			return std::nullopt;
+		}
+
+		Polynomial<T> current = *this >> first_not_zero;
+		T coefficient = current[0];
+
+		std::optional<T> sqrt_value = ::sqrt(coefficient);
+
+		if (!sqrt_value.has_value()) {
+			return std::nullopt;
+		}
+
+		current /= coefficient;
+
+		return ( ((current.log(n) / 2).exp(n) << (std::min(first_not_zero / 2, n)))).upToN(n) * sqrt_value.value();
+	}
+	inline std::optional < Polynomial > __sqrt( size_t n, Int2Type <false> ) const {
+		size_t first_not_zero = 0;
+		while (poly[first_not_zero] == T(0)) ++first_not_zero;
+
+		if (first_not_zero & 1) {
+			return std::nullopt;
+		}
+
+		Polynomial<T> current = *this >> first_not_zero;
+		T coefficient = current[0];
+
+		if (coefficient < T(0)) {
+			return std::nullopt;
+		}
+
+		T sqrt_value = ::sqrt(coefficient);
+
+		current /= coefficient;
+
+		return ( ((current.log(n) / 2).exp(n) << (std::min(first_not_zero / 2, n)))).upToN(n) * sqrt_value;
+	}
 public:
 	int _deg() const { return deg; }
 	std::vector <T> _poly() const { return poly; }
@@ -119,7 +163,7 @@ public:
 
 	template <typename U> Polynomial<T> power(U, size_t) const;
 
-	Polynomial<T> sqrt(size_t) const;
+	std::optional < Polynomial <T> > sqrt(size_t) const;
 
 	std::vector <T> evaluate( const std::vector < T > & ) const;
 	template <class U> friend Polynomial<U> interpolate( const std::vector < std::pair <U, U> > & );
@@ -325,22 +369,21 @@ Polynomial<T>& Polynomial<T>::operator *= (const Polynomial<T>& rhs) {
 
 template <class T>
 Polynomial<T>& Polynomial<T>::operator <<= (const size_t& _shift) {
-	for (size_t i = 0; i * 2 <= deg; ++i) std::swap(poly[i], poly[deg - i]);
-	poly.reserve(_shift + deg + 1);
-	for (size_t i = 0; i < _shift; ++i) poly.push_back(T(0));
+	poly.insert(poly.begin(), _shift, T(0));
 	deg = poly.size() - 1;
-	for (size_t i = 0; i * 2 <= deg; ++i) std::swap(poly[i], poly[deg - i]);
 	return *this;
 }
 
 template <class T>
 Polynomial<T>& Polynomial<T>::operator >>= (const size_t& _shift) {
-	if (_shift > deg) return (*this = Polynomial<T>());
-	for (size_t i = 0; i * 2 <= deg; ++i) std::swap(poly[i], poly[deg - i]);
-	poly.resize(deg + 1 - _shift);
-	deg = poly.size() - 1;
-	for (size_t i = 0; i * 2 <= deg; ++i) std::swap(poly[i], poly[deg - i]);
-	return *this;
+	if (_shift > deg) {
+		return (*this = Polynomial<T>());
+	}
+	else {
+		poly.erase(poly.begin(), poly.begin() + _shift);
+		deg = poly.size() - 1;
+		return *this;
+	}
 }
 
 template <class T>
@@ -469,14 +512,8 @@ Polynomial<T> Polynomial<T>::power(U k, size_t n) const {
 }
 
 template <class T>
-Polynomial<T> Polynomial<T>::sqrt(size_t n) const {
-	size_t first_not_zero = 0;
-	while (poly[first_not_zero] == T(0)) ++first_not_zero;
-
-	Polynomial<T> current = *this >> first_not_zero;
-	T coefficient = current[0];
-	current /= coefficient;
-	return ( ((current.log(n) / 2).exp(n) << (std::min(first_not_zero / 2, n)))).upToN(n) * ::sqrt(coefficient).value();
+std::optional < Polynomial <T> > Polynomial<T>::sqrt(size_t n) const {
+	return __sqrt( n, Int2Type < IsModular<T>::value >() );
 }
 
 /*
