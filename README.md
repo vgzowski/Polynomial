@@ -18,6 +18,8 @@ A C++ library, that supports basic and advanced operations on polynomials. It al
   - Input / output ('>>', '<<' operators)
 
 - **Specialized Operations:**
+  - Derivative of a polynomial
+  - Integral of a polynomial
   - Multiplying by `x^k`
   - Logarithm of a polynomial
   - Exponential of a polynomial
